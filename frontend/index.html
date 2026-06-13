@@ -117,7 +117,7 @@
           <h2>📚 梦境列表</h2>
           <div v-if="dreams.length === 0" class="empty-dream">还没有记录梦境</div>
           <div v-else class="dream-list">
-            <div v-for="dream in dreams" :key="dream.id" class="dream-item">
+            <div v-for="dream in dreams" :key="dream.id" class="dream-item" @click="openDreamDetail(dream)">
               <div class="dream-header">
                 <span class="dream-date">{{ dream.date }}</span>
                 <span class="dream-lucidity">
@@ -125,10 +125,86 @@
                 </span>
               </div>
               <div class="dream-text">{{ dream.content }}</div>
+              <div v-if="dream.history && dream.history.length > 0" class="dream-history-badge">
+                📜 {{ dream.history.length }}次修改记录
+              </div>
             </div>
           </div>
         </div>
       </main>
+    </div>
+
+    <div v-if="showDetail && selectedDream" class="modal-overlay" @click.self="closeDetail">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>🌙 梦境详情</h2>
+          <button class="modal-close" @click="closeDetail">✕</button>
+        </div>
+
+        <div v-if="!isEditing" class="detail-body">
+          <div class="detail-current">
+            <div class="detail-meta">
+              <span class="detail-date">📅 {{ selectedDream.date }}</span>
+              <span class="detail-lucidity">
+                清醒度: <span v-for="n in 5" :key="n" class="star">{{ n <= selectedDream.lucidity ? '★' : '☆' }}</span>
+              </span>
+            </div>
+            <div class="detail-content">{{ selectedDream.content }}</div>
+            <button class="btn-primary" @click="startEdit">✏️ 编辑梦境</button>
+          </div>
+
+          <div v-if="selectedDream.history && selectedDream.history.length > 0" class="history-section">
+            <h3 class="history-title">📜 版本历史 ({{ selectedDream.history.length }}次修改)</h3>
+            <div class="history-timeline">
+              <div v-for="(record, index) in [...selectedDream.history].reverse()" :key="index" class="history-item">
+                <div class="history-dot"></div>
+                <div class="history-card">
+                  <div class="history-time">{{ formatTime(record.modifiedAt) }}</div>
+                  <div class="history-meta">
+                    <span>📅 {{ record.date }}</span>
+                    <span class="detail-lucidity">
+                      <span v-for="n in 5" :key="n" class="star small">{{ n <= record.lucidity ? '★' : '☆' }}</span>
+                    </span>
+                  </div>
+                  <div class="history-content">{{ record.content }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="no-history">
+            暂无修改历史
+          </div>
+        </div>
+
+        <div v-else class="edit-body">
+          <div class="form-group">
+            <label>日期</label>
+            <input v-model="editForm.date" type="date">
+          </div>
+          <div class="form-group">
+            <label>清醒度</label>
+            <div class="star-rating">
+              <span
+                v-for="n in 5"
+                :key="n"
+                class="star big"
+                :class="{ active: n <= editForm.lucidity }"
+                @click="editForm.lucidity = n"
+              >★</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>梦境内容</label>
+            <textarea v-model="editForm.content" rows="6" placeholder="描述你的梦境..."></textarea>
+          </div>
+          <div class="edit-actions">
+            <button class="btn-primary" @click="saveEdit" :disabled="savingEdit">
+              {{ savingEdit ? '保存中...' : '💾 保存修改' }}
+            </button>
+            <button class="btn-outline" @click="cancelEdit">取消</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 

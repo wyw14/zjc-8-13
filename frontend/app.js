@@ -1,6 +1,6 @@
 const { createApp, ref, onMounted, computed } = Vue;
 
-const API_BASE = 'http://localhost:3001/api';
+const API_BASE = 'http://localhost:3113/api';
 
 createApp({
   setup() {
@@ -38,6 +38,12 @@ createApp({
     let audioContext = null;
     let noiseNode = null;
     let gainNode = null;
+
+    const selectedDream = ref(null);
+    const showDetail = ref(false);
+    const isEditing = ref(false);
+    const editForm = ref({ content: '', lucidity: 3, date: '' });
+    const savingEdit = ref(false);
 
     function getToken() {
       return localStorage.getItem('dream_token');
@@ -188,6 +194,65 @@ createApp({
       }
     }
 
+    async function openDreamDetail(dream) {
+      try {
+        const data = await apiRequest(`/dreams/${dream.id}`);
+        selectedDream.value = data;
+        showDetail.value = true;
+        isEditing.value = false;
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    function closeDetail() {
+      showDetail.value = false;
+      selectedDream.value = null;
+      isEditing.value = false;
+    }
+
+    function startEdit() {
+      if (!selectedDream.value) return;
+      editForm.value = {
+        content: selectedDream.value.content,
+        lucidity: selectedDream.value.lucidity,
+        date: selectedDream.value.date
+      };
+      isEditing.value = true;
+    }
+
+    function cancelEdit() {
+      isEditing.value = false;
+    }
+
+    async function saveEdit() {
+      if (!editForm.value.content.trim()) {
+        alert('梦境内容不能为空');
+        return;
+      }
+      savingEdit.value = true;
+      try {
+        const data = await apiRequest(`/dreams/${selectedDream.value.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(editForm.value)
+        });
+        selectedDream.value = data;
+        isEditing.value = false;
+        fetchDreams();
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        savingEdit.value = false;
+      }
+    }
+
+    function formatTime(isoStr) {
+      if (!isoStr) return '';
+      const d = new Date(isoStr);
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
     function loadData() {
       fetchDreams();
       fetchMonthlyStats();
@@ -276,7 +341,18 @@ createApp({
       selectedYear,
       selectedMonth,
       yearOptions,
-      onMonthChange
+      onMonthChange,
+      selectedDream,
+      showDetail,
+      isEditing,
+      editForm,
+      savingEdit,
+      openDreamDetail,
+      closeDetail,
+      startEdit,
+      cancelEdit,
+      saveEdit,
+      formatTime
     };
   }
 }).mount('#app');

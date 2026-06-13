@@ -6,7 +6,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const app = express();
-const PORT = 3001;
+const PORT = 3113;
 const JWT_SECRET = 'dream-secret-key-2024';
 
 const DATA_DIR = path.join(__dirname, 'data');
@@ -158,6 +158,51 @@ app.post('/api/dreams', authenticateToken, (req, res) => {
   dreams.push(newDream);
   writeJSON(DREAMS_FILE, dreams);
   res.status(201).json(newDream);
+});
+
+app.get('/api/dreams/:id', authenticateToken, (req, res) => {
+  const dreams = readJSON(DREAMS_FILE);
+  const dream = dreams.find(d => d.id === parseInt(req.params.id) && d.userId === req.user.id);
+  if (!dream) {
+    return res.status(404).json({ error: '梦境不存在' });
+  }
+  res.json(dream);
+});
+
+app.put('/api/dreams/:id', authenticateToken, (req, res) => {
+  const { content, lucidity, date } = req.body;
+  if (!content || !lucidity || !date) {
+    return res.status(400).json({ error: '内容、清醒度和日期必填' });
+  }
+
+  const dreams = readJSON(DREAMS_FILE);
+  const index = dreams.findIndex(d => d.id === parseInt(req.params.id) && d.userId === req.user.id);
+  if (index === -1) {
+    return res.status(404).json({ error: '梦境不存在' });
+  }
+
+  const oldDream = dreams[index];
+  const historyEntry = {
+    content: oldDream.content,
+    lucidity: oldDream.lucidity,
+    date: oldDream.date,
+    modifiedAt: new Date().toISOString()
+  };
+
+  if (!oldDream.history) {
+    oldDream.history = [];
+  }
+  oldDream.history.push(historyEntry);
+
+  dreams[index] = {
+    ...oldDream,
+    content,
+    lucidity: parseInt(lucidity),
+    date
+  };
+
+  writeJSON(DREAMS_FILE, dreams);
+  res.json(dreams[index]);
 });
 
 app.get('/api/dreams/random', authenticateToken, (req, res) => {
